@@ -387,3 +387,100 @@ This configuration has several limitations :-
 
 
 We can now move onto STAGE 4
+
+# Stage 4 - Split out the WP filesystem into EFS and Update the LT
+In stage 4 of this project we will be creating an EFS file system designed to store the wordpress locally stored media. This area stores any media for posts uploaded when creating the post as well as theme data. By storing this on a shared file system it means that the data can be used across all instances in a consistent way, and it lives on past the lifetime of the instance.  
+## STAGE 4A - Create EFS File System
+### File System Settings
+We will first create an elastic file system with it's mount targets which are the network interfaces in the VPC which our instances will connect with, they will be located in the subnets `sn-App-A`, `sn-App-B` and `sn-App-C`.
+For this we use the following terraform code:  
+```terraform
+resource "aws_efs_file_system" "ADP-WORDPRESS-CONTENT" {
+  creation_token = "ADP-WORDPRESS-CONTENT"
+}
+
+resource "aws_efs_mount_target" "mount_appA" {
+  file_system_id = "${aws_efs_file_system.ADP-WORDPRESS-CONTENT.id}"
+  subnet_id      = data.aws_subnet.sn-app-A.id
+  security_groups = [data.aws_security_group.SGEFS.id] 
+}
+
+resource "aws_efs_mount_target" "mount_appB" {
+  file_system_id = "${aws_efs_file_system.ADP-WORDPRESS-CONTENT.id}"
+  subnet_id      = data.aws_subnet.sn-app-B.id
+  security_groups = [data.aws_security_group.SGEFS.id] 
+}
+
+resource "aws_efs_mount_target" "mount_appC" {
+  file_system_id = "${aws_efs_file_system.ADP-WORDPRESS-CONTENT.id}"
+  subnet_id      = data.aws_subnet.sn-app-C.id
+  security_groups = [data.aws_security_group.SGEFS.id] 
+}
+```
+
+## STAGE 4B - Add an fsid to parameter store
+
+Now that the file system has been created, we need to add another parameter store value for the file system ID so that the automatically built instance(s) can load this safely.  
+```terraform
+#5 create efs ssm parameter
+resource "aws_ssm_parameter" "EFSFSID" {
+  name        = "/ADP/Wordpress/EFSFSID"
+  description = "File System ID for wordpress content (wp-content)"
+  type        = "String"
+  value       = aws_efs_file_system.ADP-WORDPRESS-CONTENT.id
+}
+```
+
+## STAGE 4C - Connect the file system to the EC2 instance & copy data
+To do so, we connect to the instance and we do the following:  
+First we need to install the amazon EFS utilities to allow the instance to connect to EFS. EFS is based on NFS which is standard and the EFS tooling makes things easier.  
+```
+sudo dnf -y install amazon-efs-utils
+```
+
+Next we need to migrate the existing media content from wp-content into EFS, and this is a multi step process.
+
+First, we copy the content to a temporary location and make a new empty folder.  
+```
+cd /var/www/html
+sudo mv wp-content/ /tmp
+sudo mkdir wp-content
+```
+
+then get the efs file system ID from parameter store
+
+```
+EFSFSID=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/EFSFSID --query Parameters[0].Value)
+EFSFSID=`echo $EFSFSID | sed -e 's/^"//' -e 's/"$//'`
+```
+Next we add a line to /etc/fstab to configure the EFS file system to mount as /var/www/html/wp-content/
+
+```
+echo -e "$EFSFSID:/ /var/www/html/wp-content efs _netdev,tls,iam 0 0" >> /etc/fstab
+```
+
+```
+mount -a -t efs defaults
+```
+
+now we need to copy the origin content data back in and fix permissions
+
+```
+mv /tmp/wp-content/* /var/www/html/wp-content/
+```
+
+```
+chown -R ec2-user:apache /var/www/
+
+```
+
+## STAGE 4D - Test that the wordpress app can load the media
+We then reboot the EC2 wordpress instance
+```
+reboot
+```
+## STAGE 4E - Update the launch template with the config to automate the EFS part
+Next you will update the launch template so that it automatically mounts the EFS file system during its provisioning process. This means that in the next stage, when you add autoscaling, all instances will have access to the same media store ...allowing the platform to scale.
+ 
+
+
