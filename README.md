@@ -129,3 +129,103 @@ We should see the wordpress welcome page
 
 ## STAGE 1 - FINISH  
 We can now move to stage 2
+
+# Stage 2 - Automate the build using a Launch Template  
+In stage 2 of this project we are going to create a launch template which can automate the build of WordPress.
+The architecture will still use the single instance for both the WordPress application and database, the only change will be an automatic build rather than manual.  
+
+Before proceeding, we delete the instance we created manually in the previous step.  
+
+## STAGE 2A - Create the Launch Template
+We created the launch template by applying this terraform code
+```terraform
+data "aws_ami" "amazon-linux" {
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.0.20230614.0-kernel-6.1-x86_64"]
+  }
+}
+
+data "aws_security_group" "SGWordpress" {
+  name = "SGWordpress"
+}
+
+data "aws_iam_instance_profile" "WordpressInstanceProfile" {
+  name = "WordpressInstanceProfile"
+}
+#1 create launch template version 1
+resource "aws_launch_template" "Wordpress" {
+  name = "Wordpress"
+  description = "Single Server DB and App"
+  image_id = data.aws_ami.amazon-linux.id # this ami corresponds to the AMI Amazon Linux
+  instance_type = "t2.micro"
+  key_name = "A4L"
+  #security_group_names = [data.aws_security_group.SGWordpress.name]
+  vpc_security_group_ids = [data.aws_security_group.SGWordpress.id]
+  iam_instance_profile {
+    name = data.aws_iam_instance_profile.WordpressInstanceProfile.name
+  }
+  user_data = filebase64("C:\\Users\\user\\Desktop\\project_architecture_evolution\\user_data.sh") 
+
+}
+```
+What we did here is we created a launch template from the free tier `Amazon Machine Image` called `Amazon Linux 2023 AMI`, we then provided the instance with the right `security group` called `ADPVPC-SGWordpress` and the right `IAM instance profile` called `ADPVPC-WordpressInstanceProfile`  
+
+we then added the configuration which will build the instance from the local file "C:\Users\user\Desktop\project_architecture_evolution\user_data.sh", this file when executed at the first launch of the instance provides the wordpress installation we did manually in the previous stage, here is the content of this file  
+```sh
+#!/bin/bash -xe
+
+DBPassword=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBPassword --with-decryption --query Parameters[0].Value)
+DBPassword=`echo $DBPassword | sed -e 's/^"//' -e 's/"$//'`
+
+DBRootPassword=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBRootPassword --with-decryption --query Parameters[0].Value)
+DBRootPassword=`echo $DBRootPassword | sed -e 's/^"//' -e 's/"$//'`
+
+DBUser=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBUser --query Parameters[0].Value)
+DBUser=`echo $DBUser | sed -e 's/^"//' -e 's/"$//'`
+
+DBName=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBName --query Parameters[0].Value)
+DBName=`echo $DBName | sed -e 's/^"//' -e 's/"$//'`
+
+DBEndpoint=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBEndpoint --query Parameters[0].Value)
+DBEndpoint=`echo $DBEndpoint | sed -e 's/^"//' -e 's/"$//'`
+
+dnf -y update
+
+dnf install wget php-mysqlnd httpd php-fpm php-mysqli mariadb105-server php-json php php-devel stress -y
+
+systemctl enable httpd
+systemctl enable mariadb
+systemctl start httpd
+systemctl start mariadb
+
+mysqladmin -u root password $DBRootPassword
+
+wget http://wordpress.org/latest.tar.gz -P /var/www/html
+cd /var/www/html
+tar -zxvf latest.tar.gz
+cp -rvf wordpress/* .
+rm -R wordpress
+rm latest.tar.gz
+
+sudo cp ./wp-config-sample.php ./wp-config.php
+sed -i "s/'database_name_here'/'$DBName'/g" wp-config.php
+sed -i "s/'username_here'/'$DBUser'/g" wp-config.php
+sed -i "s/'password_here'/'$DBPassword'/g" wp-config.php
+sed -i "s/'localhost'/'$DBEndpoint'/g" wp-config.php
+
+usermod -a -G apache ec2-user   
+chown -R ec2-user:apache /var/www
+chmod 2775 /var/www
+find /var/www -type d -exec chmod 2775 {} \;
+find /var/www -type f -exec chmod 0664 {} \;
+
+echo "CREATE DATABASE $DBName;" >> /tmp/db.setup
+echo "CREATE USER '$DBUser'@'localhost' IDENTIFIED BY '$DBPassword';" >> /tmp/db.setup
+echo "GRANT ALL ON $DBName.* TO '$DBUser'@'localhost';" >> /tmp/db.setup
+echo "FLUSH PRIVILEGES;" >> /tmp/db.setup
+mysql -u root --password=$DBRootPassword < /tmp/db.setup
+rm /tmp/db.setup
+
+
+```
