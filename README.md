@@ -264,7 +264,43 @@ This configuration has several limitations :-
 
 
 we can now move onto STAGE3
+# Stage 3 - Split out the DB into RDS and Update the LT 
+In stage 3 we will be splitting out the database functionality from the EC2 instance .. running MariaDB to an RDS instance running the MySQL Engine.  
+This will allow the DB and Instance to scale independently, and will allow the data to be secure past the lifetime of the EC2 instance.  
+## STAGE 3A - Create RDS Subnet Group
+A subnet group is what allows RDS to select from a range of subnets to put its databases inside  
+In this case we will give it a selection of 3 subnets sn-db-A / B and C  
+RDS can then decide freely which to use.  
 
+Here is the terraform code use:  
+```terraform
+data "aws_subnet" "sn-db-A" {
+  filter {
+    name   = "cidr"
+    values = ["10.16.16.0/20"]
+  }
+}
+
+data "aws_subnet" "sn-db-B" {
+  filter {
+    name   = "cidr"
+    values = ["10.16.80.0/20"]
+  }
+}
+
+data "aws_subnet" "sn-db-C" {
+  filter {
+    name   = "cidr"
+    values = ["10.16.144.0/20"]
+  }
+}
+#2 create db subnet group
+resource "aws_db_subnet_group" "wordpress_rds_subnet_group" {
+  name       = "wordpress_rds_subnet_group"
+  description = "RDS Subnet Group for Wordpress"
+  subnet_ids = [data.aws_subnet.sn-db-A.id, data.aws_subnet.sn-db-B.id, data.aws_subnet.sn-db-C.id]
+}
+```
 
 
 
