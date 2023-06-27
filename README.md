@@ -124,7 +124,7 @@ sudo rm /tmp/db.setup
 ```
 
 ### Test Wordpress is installed
-Open the `IPv4 Public IP` of the instance  in a new tab  
+We open the `IPv4 Public IP` of the instance  in a new tab  
 We should see the wordpress welcome page  
 
 ## STAGE 1 - FINISH  
@@ -134,25 +134,12 @@ We can now move to stage 2
 In stage 2 of this project we are going to create a launch template which can automate the build of WordPress.
 The architecture will still use the single instance for both the WordPress application and database, the only change will be an automatic build rather than manual.  
 
-Before proceeding, we delete the instance we created manually in the previous step.  
+Before proceeding, we delete the instance we created manually in the previous step and we import into terraform all the necessary data of the ressources we have already created in the initial stage via the **data** option field in terraform
+
 
 ## STAGE 2A - Create the Launch Template
 We created the launch template by applying this terraform code
 ```terraform
-data "aws_ami" "amazon-linux" {
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023.0.20230614.0-kernel-6.1-x86_64"]
-  }
-}
-
-data "aws_security_group" "SGWordpress" {
-  name = "SGWordpress"
-}
-
-data "aws_iam_instance_profile" "WordpressInstanceProfile" {
-  name = "WordpressInstanceProfile"
-}
 #1 create launch template version 1
 resource "aws_launch_template" "Wordpress" {
   name = "Wordpress"
@@ -176,19 +163,19 @@ We then added the configuration which will build the instance from the local fil
 ```
 #!/bin/bash -xe
 
-DBPassword=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBPassword --with-decryption --query Parameters[0].Value)
+DBPassword=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBPassword --with-decryption --query Parameters[0].Value)
 DBPassword=`echo $DBPassword | sed -e 's/^"//' -e 's/"$//'`
 
-DBRootPassword=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBRootPassword --with-decryption --query Parameters[0].Value)
+DBRootPassword=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBRootPassword --with-decryption --query Parameters[0].Value)
 DBRootPassword=`echo $DBRootPassword | sed -e 's/^"//' -e 's/"$//'`
 
-DBUser=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBUser --query Parameters[0].Value)
+DBUser=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBUser --query Parameters[0].Value)
 DBUser=`echo $DBUser | sed -e 's/^"//' -e 's/"$//'`
 
-DBName=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBName --query Parameters[0].Value)
+DBName=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBName --query Parameters[0].Value)
 DBName=`echo $DBName | sed -e 's/^"//' -e 's/"$//'`
 
-DBEndpoint=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/DBEndpoint --query Parameters[0].Value)
+DBEndpoint=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBEndpoint --query Parameters[0].Value)
 DBEndpoint=`echo $DBEndpoint | sed -e 's/^"//' -e 's/"$//'`
 
 dnf -y update
@@ -272,28 +259,8 @@ A subnet group is what allows RDS to select from a range of subnets to put its d
 In this case we will give it a selection of 3 subnets sn-db-A / B and C  
 RDS can then decide freely which to use.  
 
-Here is the terraform code use:  
+Here is the terraform code used:  
 ```terraform
-data "aws_subnet" "sn-db-A" {
-  filter {
-    name   = "cidr"
-    values = ["10.16.16.0/20"]
-  }
-}
-
-data "aws_subnet" "sn-db-B" {
-  filter {
-    name   = "cidr"
-    values = ["10.16.80.0/20"]
-  }
-}
-
-data "aws_subnet" "sn-db-C" {
-  filter {
-    name   = "cidr"
-    values = ["10.16.144.0/20"]
-  }
-}
 #2 create db subnet group
 resource "aws_db_subnet_group" "wordpress_rds_subnet_group" {
   name       = "wordpress_rds_subnet_group"
@@ -301,6 +268,122 @@ resource "aws_db_subnet_group" "wordpress_rds_subnet_group" {
   subnet_ids = [data.aws_subnet.sn-db-A.id, data.aws_subnet.sn-db-B.id, data.aws_subnet.sn-db-C.id]
 }
 ```
+## STAGE 3B - Create RDS Instance
+In this sub stage of this project, we are going to provision an RDS instance using the subnet group to control placement within the VPC.   
+Here is the terraform code
+```terraform
+resource "aws_db_instance" "adpwordpress" {
+  engine               = "mysql"
+  engine_version       = "8.0.32"
+  identifier           = "adpwordpress"
+  username             = data.aws_ssm_parameter.db_master_username.value
+  password             = data.aws_ssm_parameter.db_master_password.value
+  instance_class       = "db.t3.micro"
+  db_subnet_group_name = aws_db_subnet_group.wordpress_rds_subnet_group.name
+  vpc_security_group_ids = [data.aws_security_group.SGDatabase.id]
+  availability_zone      = data.aws_subnet.sn-web-A.availability_zone
+  db_name                = data.aws_ssm_parameter.db_name.value
+  storage_type           = "gp2"
+  allocated_storage      = 20
+  skip_final_snapshot  = true
+}
+```
+** this will take some time to create ... it will need to be fully ready before we move to the next step **
+## STAGE 3C - Migrate WordPress data from MariaDB to RDS
+### Populate Environment Variables
+We are going to do an export of the SQL database running on the local ec2 instance
+
+First we will run these commands to populate variables with the data from Parameter store  
+```
+DBPassword=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBPassword --with-decryption --query Parameters[0].Value)
+DBPassword=`echo $DBPassword | sed -e 's/^"//' -e 's/"$//'`
+
+DBRootPassword=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBRootPassword --with-decryption --query Parameters[0].Value)
+DBRootPassword=`echo $DBRootPassword | sed -e 's/^"//' -e 's/"$//'`
+
+DBUser=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBUser --query Parameters[0].Value)
+DBUser=`echo $DBUser | sed -e 's/^"//' -e 's/"$//'`
+
+DBName=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBName --query Parameters[0].Value)
+DBName=`echo $DBName | sed -e 's/^"//' -e 's/"$//'`
+
+DBEndpoint=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBEndpoint --query Parameters[0].Value)
+DBEndpoint=`echo $DBEndpoint | sed -e 's/^"//' -e 's/"$//'`
+
+```
+
+### Take a Backup of the local DB
+
+To take a backup of the database run
+
+```
+mysqldump -h $DBEndpoint -u $DBUser -p$DBPassword $DBName > adpWordPress.sql
+```
+
+### Restore that Backup into RDS
+First we will update the value of the SSM parameter `/ADP/Wordpress/DBEndpoint` to point to the `adpWordPressdb` instance's `endpoint`  
+Then we:  
+Update the DbEndpoint environment variable with 
+
+```
+DBEndpoint=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBEndpoint --query Parameters[0].Value)
+DBEndpoint=`echo $DBEndpoint | sed -e 's/^"//' -e 's/"$//'`
+```
+
+Restore the database export into RDS using
+
+```
+mysql -h $DBEndpoint -u $DBUser -p$DBPassword $DBName < adpWordPress.sql 
+```
+### Change the WordPress config file to use RDS
+this command will substitute `localhost` in the config file for the contents of `$DBEndpoint` which is the RDS instance
+
+```
+sudo sed -i "s/'localhost'/'$DBEndpoint'/g" /var/www/html/wp-config.php
+```
+
+## STAGE 3D - Stop the MariaDB Service
+
+```
+sudo systemctl disable mariadb
+sudo systemctl stop mariadb
+```
 
 
+## STAGE 3E - Test WordPress
+We open the `IPv4 Public IP` of the instance  in a new tab  
+We should see the blog, working, even though MariaDB on the EC2 instance is stopped and disabled
+Its now running using RDS  
+## STAGE 3F - Update the LT so it doesnt install 
+We then update the launch template and hence create a new version of the template by locating and removing the following lines
+Locate and remove the following lines
 
+```
+systemctl enable mariadb
+systemctl start mariadb
+mysqladmin -u root password $DBRootPassword
+
+
+echo "CREATE DATABASE $DBName;" >> /tmp/db.setup
+echo "CREATE USER '$DBUser'@'localhost' IDENTIFIED BY '$DBPassword';" >> /tmp/db.setup
+echo "GRANT ALL ON $DBName.* TO '$DBUser'@'localhost';" >> /tmp/db.setup
+echo "FLUSH PRIVILEGES;" >> /tmp/db.setup
+mysql -u root --password=$DBRootPassword < /tmp/db.setup
+rm /tmp/db.setup
+```
+
+# STAGE 3 - FINISH  
+
+This configuration has several limitations :-
+
+- ~~The application and database are built manually, taking time and not allowing automation~~ FIXED  
+- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~The database and application are on the same instance, neither can scale without the other~~ FIXED  
+- ~~The database of the application is on an instance, scaling IN/OUT risks this media~~ FIXED  
+
+- The application media and UI store is local to an instance, scaling IN/OUT risks this media
+- Customer Connections are to an instance directly ... no health checks/auto healing
+- The IP of the instance is hardcoded into the database ....
+
+
+We can now move onto STAGE 4
