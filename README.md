@@ -244,8 +244,26 @@ Click `Launch Instance`
 We then open the `IPv4 Public IP` in a new tab  
 We then see the WordPress welcome page  
 
+Then we log in and we create a post 
+
+And now we have an auto built WordPress instance
+** we won't terminate the instance this time - we're going to migrate the database in stage 3**
+
+## STAGE 2 - FINISH  
+
+This configuration has several limitations :-
+
+- ~~The application and database are built manually, taking time and not allowing automation~~ FIXED
+- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+
+- The database and application are on the same instance, neither can scale without the other
+- The database of the application is on an instance, scaling IN/OUT risks this media
+- The application media and UI store is local to an instance, scaling IN/OUT risks this media
+- Customer Connections are to an instance directly ... no health checks/auto healing
+- The IP of the instance is hardcoded into the database ....
 
 
+we can now move onto STAGE3
 
 
 
