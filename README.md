@@ -171,7 +171,8 @@ resource "aws_launch_template" "Wordpress" {
 ```
 What we did here is we created a launch template from the free tier `Amazon Machine Image` called `Amazon Linux 2023 AMI`, we then provided the instance with the right `security group` called `ADPVPC-SGWordpress` and the right `IAM instance profile` called `ADPVPC-WordpressInstanceProfile`  
 
-we then added the configuration which will build the instance from the local file "C:\Users\user\Desktop\project_architecture_evolution\user_data.sh", this file when executed at the first launch of the instance provides the wordpress installation we did manually in the previous stage, here is the content of this file.  
+## STAGE 2B - Add Userdata
+We then added the configuration which will build the instance from the local file "C:\Users\user\Desktop\project_architecture_evolution\user_data.sh", this file when executed at the first launch of the instance provides the wordpress installation we did manually in the previous stage, here is the content of this file.  
 ```
 #!/bin/bash -xe
 
@@ -229,6 +230,20 @@ rm /tmp/db.setup
 
 
 ```
+
+## STAGE 2C - Launch an instance using it
+We then went to aws console and did the following to launch an instance from the template we just created:   
+Select the launch template  called `Wordpress`  
+Click `Actions` and `Launch instance from template`
+Scroll down to `Network settings` and under `Subnet` select `sn-pub-A`  
+Scroll to `Resource Tags` click `Add tag`, set `Key` to `Name` and `Value` to `Wordpress-LT` (this is useful to know the instances we launched from Launch template)
+Click `Launch Instance`  
+## STAGE 2D - Test
+*we wait until the instance is running with 2/2 status checks before contuining*  
+
+We then open the `IPv4 Public IP` in a new tab  
+We then see the WordPress welcome page  
+
 
 
 
