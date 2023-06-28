@@ -156,7 +156,7 @@ resource "aws_launch_template" "Wordpress" {
 
 }
 ```
-What we did here is we created a launch template from the free tier `Amazon Machine Image` called `Amazon Linux 2023 AMI`, we then provided the instance with the right `security group` called `ADPVPC-SGWordpress` and the right `IAM instance profile` called `ADPVPC-WordpressInstanceProfile`  
+What we did here is we created a launch template with description "Single Server DB and App", we created it from the free tier `Amazon Machine Image` called `Amazon Linux 2023 AMI`, we then provided the instance with the right `security group` called `ADPVPC-SGWordpress` and the right `IAM instance profile` called `ADPVPC-WordpressInstanceProfile`  
 
 ## STAGE 2B - Add Userdata
 We then added the configuration which will build the instance from the local file "C:\Users\user\Desktop\project_architecture_evolution\user_data.sh", this file when executed at the first launch of the instance provides the wordpress installation we did manually in the previous stage, here is the content of this file.  
@@ -355,8 +355,9 @@ We open the `IPv4 Public IP` of the instance  in a new tab
 We should see the blog, working, even though MariaDB on the EC2 instance is stopped and disabled
 Its now running using RDS  
 ## STAGE 3F - Update the LT so it doesnt install 
-We then update the launch template and hence create a new version of the template by locating and removing the following lines
-Locate and remove the following lines
+We then update the launch template and hence create a new version of the template 
+First for `Template version description` we enter `Single server App Only - RDS DB`  
+Then we locate and remove the following lines
 
 ```
 systemctl enable mariadb
@@ -480,7 +481,165 @@ We then reboot the EC2 wordpress instance
 reboot
 ```
 ## STAGE 4E - Update the launch template with the config to automate the EFS part
-Next you will update the launch template so that it automatically mounts the EFS file system during its provisioning process. This means that in the next stage, when you add autoscaling, all instances will have access to the same media store ...allowing the platform to scale.
- 
+Next we will update the launch template so that it automatically mounts the EFS file system during its provisioning process. This means that in the next stage, when we add autoscaling, all instances will have access to the same media store ...allowing the platform to scale.  
+
+First for `Template version description` enter `App only, uses EFS filesystem defined in /ADP/Wordpress/EFSFSID`  
+We then update the launch template and hence create a new version of the template by adding the following lines:  
+After `#!/bin/bash -xe` we paste in this
+```
+EFSFSID=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/EFSFSID --query Parameters[0].Value)
+EFSFSID=`echo $EFSFSID | sed -e 's/^"//' -e 's/"$//'`
+
+```
+we then search the line which says `dnf install wget php-mysqlnd httpd php-fpm php-mysqli php-json php php-devel stress -y`
+after `stress` we add a space and paste in `amazon-efs-utils`  
+it should now look like `dnf install wget php-mysqlnd httpd php-fpm php-mysqli php-json php php-devel stress amazon-efs-u
+
+Just after `systemctl start httpd` we paste the following lines
+```
+mkdir -p /var/www/html/wp-content
+chown -R ec2-user:apache /var/www/
+echo -e "$EFSFSID:/ /var/www/html/wp-content efs _netdev,tls,iam 0 0" >> /etc/fstab
+mount -a -t efs defaults
+```
+Then we create a new version, version 3
+
+## STAGE 4 - FINISH  
+
+This configuration has several limitations :-
+
+- ~~The application and database are built manually, taking time and not allowing automation~~ FIXED  
+- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~The database and application are on the same instance, neither can scale without the other~~ FIXED  
+- ~~The database of the application is on an instance, scaling IN/OUT risks this media~~ FIXED  
+- ~~The application media and UI store is local to an instance, scaling IN/OUT risks this media~~ FIXED  
+
+- Customer Connections are to an instance directly ... no health checks/auto healing
+- The IP of the instance is hardcoded into the database ....
+
+
+We can now move onto stage 5
+
+# Stage 5 - Enable elasticity via a ASG & ALB
+In stage 5 of this advanced demo lesson, we will be adding an auto scaling group to provision and terminate instances automatically based on load on the system.  
+
+We have already performed all of the preparation steps required, by moving data storage onto RDS, media storage onto EFS and creating a launch template to automatically build the wordpress application servers.
+
+## STAGE 5A - Create the load balancer
+We create the Application load  balancer with `Security Groups` called `SGLoadBalancer`  
+```terraform
+#2 Create load balancer
+resource "aws_lb" "ADPWORDPRESSALB" {
+  name               = "ADPWORDPRESSALB"
+  internal           = false
+  load_balancer_type = "application"
+  ip_address_type    = "ipv4"
+  subnets            = [data.aws_subnet.sn-web-A.id, data.aws_subnet.sn-web-B.id, data.aws_subnet.sn-web-C.id]
+  security_groups    = [data.aws_security_group.SGLoadBalancer.id]
+}
+```
+We then create the listener and the target group on port 80 and protocol HTTP
+```terraform
+resource "aws_lb_listener" "lb_listener" {
+  load_balancer_arn = aws_lb.ADPWORDPRESSALB.arn
+  port              = "80"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ADPWORDPRESSALBTG.arn
+  }
+}
+
+resource "aws_lb_target_group" "ADPWORDPRESSALBTG" {
+  name     = "tf-example-lb-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.adp-vpc1.id
+  health_check {
+    path = "/"
+    protocol = "HTTP"
+    
+  }
+}
+```
+## STAGE 5B - Create a new Parameter store value with the ELB DNS name
+We then create a parameter store value for the application load balancer's DNS name
+```terraform
+resource "aws_ssm_parameter" "ALBDNSNAME" {
+  name        = "/ADP/Wordpress/ALBDNSNAME"
+  description = "DNS Name of the Application Load Balancer for wordpress "
+  type        = "String"
+  value       = aws_lb.ADPWORDPRESSALB.dns_name
+}
+```
+## STAGE 5C - Update the Launch template to wordpress is updated with the ELB DNS as its home
+First for `Template version description` enter `App only, uses EFS filesystem defined in /ADP/Wordpress/EFSFSID`  
+We then update the launch template and hence create a new version of the template by adding the following lines:  
+After `#!/bin/bash -xe` we paste in this
+
+```
+ALBDNSNAME=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/ALBDNSNAME --query Parameters[0].Value)
+ALBDNSNAME=`echo $ALBDNSNAME | sed -e 's/^"//' -e 's/"$//'`
+
+```
+then we move all the way to the bottom of the `User Data` and paste in this block
+
+```
+cat >> /home/ec2-user/update_wp_ip.sh<< 'EOF'
+#!/bin/bash
+source <(php -r 'require("/var/www/html/wp-config.php"); echo("DB_NAME=".DB_NAME."; DB_USER=".DB_USER."; DB_PASSWORD=".DB_PASSWORD."; DB_HOST=".DB_HOST); ')
+SQL_COMMAND="mysql -u $DB_USER -h $DB_HOST -p$DB_PASSWORD $DB_NAME -e"
+OLD_URL=$(mysql -u $DB_USER -h $DB_HOST -p$DB_PASSWORD $DB_NAME -e 'select option_value from wp_options where option_id = 1;' | grep http)
+
+ALBDNSNAME=$(aws ssm get-parameters --region us-east-1 --names /A4L/Wordpress/ALBDNSNAME --query Parameters[0].Value)
+ALBDNSNAME=`echo $ALBDNSNAME | sed -e 's/^"//' -e 's/"$//'`
+
+$SQL_COMMAND "UPDATE wp_options SET option_value = replace(option_value, '$OLD_URL', 'http://$ALBDNSNAME') WHERE option_name = 'home' OR option_name = 'siteurl';"
+$SQL_COMMAND "UPDATE wp_posts SET guid = replace(guid, '$OLD_URL','http://$ALBDNSNAME');"
+$SQL_COMMAND "UPDATE wp_posts SET post_content = replace(post_content, '$OLD_URL', 'http://$ALBDNSNAME');"
+$SQL_COMMAND "UPDATE wp_postmeta SET meta_value = replace(meta_value,'$OLD_URL','http://$ALBDNSNAME');"
+EOF
+
+chmod 755 /home/ec2-user/update_wp_ip.sh
+echo "/home/ec2-user/update_wp_ip.sh" >> /etc/rc.local
+/home/ec2-user/update_wp_ip.sh
+```
+Then we click `Actions` and select `Set Default Version` and under `Template version` select `4`  
+## STAGE 5D - Create an auto scaling group (no scaling yet)
+Then we create an auto scaling group with the latest template version  
+```terraform
+resource "aws_autoscaling_group" "ASG" {
+  name                      = "ADPWORDPRESSASG"
+  vpc_zone_identifier       = [data.aws_subnet.sn-web-A.id, data.aws_subnet.sn-web-B.id, data.aws_subnet.sn-web-C.id]
+  health_check_type         = "EC2"
+  health_check_grace_period = 300
+  desired_capacity   = 1
+  max_size           = 3
+  min_size           = 1
+  tag {
+    key                 = "Name"
+    value               = "Wordpress-ASG"
+    propagate_at_launch = true
+  }
+
+  launch_template {
+    id      = data.aws_launch_template.Wordpress.id
+    version = "$Latest"
+  }
+}
+```
+## STAGE 5E - Integrate ASG and ALB
+
+Its here where we integrate the ASG with the Load Balancer. What ASG does, it link with a target group, any instances provisioned by the ASG are added to the target group, anything terminated is removed.  
+```terraform
+#4 Create a new ALB Target Group attachment
+resource "aws_autoscaling_attachment" "TG-ASG-Attach" {
+  autoscaling_group_name = aws_autoscaling_group.ASG.id
+  lb_target_group_arn    = aws_lb_target_group.ADPWORDPRESSALBTG.arn
+}
+```
+Now we will see one instance called `Wordpress-ASG` created automatically by the ASG using the launch template - this is because the desired capacity is set to `1` and we currently have `0` 
+## STAGE 5F - Add scaling
+
 
 
