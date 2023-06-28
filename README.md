@@ -640,6 +640,95 @@ resource "aws_autoscaling_attachment" "TG-ASG-Attach" {
 ```
 Now we will see one instance called `Wordpress-ASG` created automatically by the ASG using the launch template - this is because the desired capacity is set to `1` and we currently have `0` 
 ## STAGE 5F - Add scaling
+We're going to add two policies, scale in and scale out.  
+
+### SCALEOUT when CPU usage on average is above 40%
+For the scale out policy, we will add one  EC2 instance if CPU > 40% , we create the corresponding scaling policy and cloudwatch alarm
+```terraform
+#5 autoscaling policies
+resource "aws_autoscaling_policy" "wordpresshighcpu" {
+  name                   = "wordpresshighcpu"
+  policy_type            = "SimpleScaling"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.ASG.name
+}
+```
+#6 cloudwatch alarms
+resource "aws_cloudwatch_metric_alarm" "alarm_highcpu" {
+  alarm_name          = "alarm_highcpu"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 40
+  alarm_actions     = [aws_autoscaling_policy.wordpresshighcpu.arn]
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.ASG.name
+  }
+}
+
+### SCALEIN when CPU usage on average ie below 40%
+For the scale in policy, we will remove one  EC2 instance if CPU < 40% , we create the corresponding scaling policy and cloudwatch alarm
+```terraform
+resource "aws_autoscaling_policy" "wordpresslowcpu" {
+  name                   = "wordpresslowcpu"
+  policy_type            = "SimpleScaling"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.ASG.name
+}
+
+resource "aws_cloudwatch_metric_alarm" "alarm_lowcpu" {
+  alarm_name          = "alarm_lowcpu"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 40
+  alarm_actions     = [aws_autoscaling_policy.wordpresslowcpu.arn]
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.ASG.name
+  }
+}
+```
+## STAGE 5G - Test Scaling & Self Healing
+We then open Auto scaling group tab and click on `Activity` tab to watch the activity of the auto scaling group  
+
+Then we simulate some load on the wordpress instance, for that we connect to the instance via session manager, switch to the root user  then run `stress -c 2 -v -t 3000`  
+
+this stresses the CPU on the instance, while running , we can go to the ASG tag, and refresh the activities tab. it might take a few minutes, but the ASG will detect high CPU load and begin provisioning a new EC2 instance. 
+if we want to see the monitoring stats, we can change to the monitoring tag on the ASG Console  
+
+At some point another instance will be added. This will be auto built based on the launch template, connect to the RDS instance and EFS file system and add another instance of capacity to the platform.
+If we try terminating one of the EC2 instances and if we watch what happens in the activity tab of the auto scaling group console, we will see that a new instance is provisioned to take the old ones   place.
+This is an example of self-healing  
+
+## STAGE 5 - FINISH  
+
+This configuration has several limitations :-
+
+- ~~The application and database are built manually, taking time and not allowing automation~~ FIXED  
+- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~The database and application are on the same instance, neither can scale without the other~~ FIXED  
+- ~~The database of the application is on an instance, scaling IN/OUT risks this media~~ FIXED  
+- ~~The application media and UI store is local to an instance, scaling IN/OUT risks this media~~ FIXED  
+- ~~Customer Connections are to an instance directly ... no health checks/auto healing~~ FIXED
+- ~~The IP of the instance is hardcoded into the database ....~~ FIXED
 
 
+We can now move onto STAGE6 which is the cleanup step.  
 
+## STAGE 6 - Clean Up
+
+To clean up our account, all we have to do is the following in the following order:  
+
+1  Go into terraform_script_vpc directory and execute `terraform destroy -auto-approve`  
+2  Go into terraform_script_LT_V2 directory and execute `terraform destroy -auto-approve`  
+3 Go into terraform_script_LT_V3 directory and execute `terraform destroy -auto-approve`
