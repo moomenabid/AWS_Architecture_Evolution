@@ -8,8 +8,8 @@ Here is an overview of what we will do:
 - Stage 1 - Setup the environment and manually build wordpress  
 - Stage 2 - Automate the build using a Launch Template  
 - Stage 3 - Split out the DB into RDS and Update the LT (Launch Template)
-- Stage 4 - Split out the WP filesystem into EFS and Update the LT
-- Stage 5 - Enable elasticity via a ASG & ALB
+- Stage 4 - Split out the WP (Word Press) filesystem into EFS (Elastic File System) and Update the LT
+- Stage 5 - Enable elasticity via a ASG (Auto Scaling Group) & ALB (Application Load Balancer)
 - Stage 6 - Cleanup
 
 # STAGE 1 - Setup the environment and manually build wordpress
