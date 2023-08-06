@@ -654,7 +654,7 @@ resource "aws_autoscaling_policy" "wordpresshighcpu" {
   cooldown               = 300
   autoscaling_group_name = aws_autoscaling_group.ASG.name
 }
-```
+
 #6 cloudwatch alarms
 resource "aws_cloudwatch_metric_alarm" "alarm_highcpu" {
   alarm_name          = "alarm_highcpu"
@@ -670,7 +670,7 @@ resource "aws_cloudwatch_metric_alarm" "alarm_highcpu" {
     AutoScalingGroupName = aws_autoscaling_group.ASG.name
   }
 }
-
+```
 ### SCALEIN when CPU usage on average ie below 40%
 For the scale in policy, we will remove one  EC2 instance if CPU < 40% , we create the corresponding scaling policy and cloudwatch alarm
 ```terraform
