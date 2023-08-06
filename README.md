@@ -48,7 +48,7 @@ We have already created the necessary SSM parameters when we have run the previo
 To do this, we will:  
 Connect to the instance using `Session Manager`  
 
-Ince connected to the machine, we switch to the root user and here is what we do next:  
+Once connected to the machine, we switch to the root user and here is what we do next:  
 ### Bring in the parameter values from SSM
 ```
 DBPassword=$(aws ssm get-parameters --region us-east-1 --names /ADP/Wordpress/DBPassword --with-decryption --query Parameters[0].Value)
