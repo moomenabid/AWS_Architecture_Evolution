@@ -241,7 +241,7 @@ And now we have an auto built WordPress instance
 This configuration has several limitations :-
 
 - ~~The application and database are built manually, taking time and not allowing automation~~ FIXED
-- ~~^^ it was slow and annoying ... ~~ FIXED  
+- ~~it was slow and annoying ... ~~ FIXED  
 
 - The database and application are on the same instance, neither can scale without the other
 - The database of the application is on an instance, scaling IN/OUT risks this media
