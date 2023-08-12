@@ -241,13 +241,12 @@ And now we have an auto built WordPress instance
 This configuration has several limitations :-
 
 - ~~The application and database are built manually, taking time and not allowing automation~~ FIXED
-- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~^^ it was slow and annoying ... ~~ FIXED  
 
 - The database and application are on the same instance, neither can scale without the other
 - The database of the application is on an instance, scaling IN/OUT risks this media
 - The application media and UI store is local to an instance, scaling IN/OUT risks this media
 - Customer Connections are to an instance directly ... no health checks/auto healing
-- The IP of the instance is hardcoded into the database ....
 
 
 we can now move onto STAGE3
@@ -378,13 +377,12 @@ rm /tmp/db.setup
 This configuration has several limitations :-
 
 - ~~The application and database are built manually, taking time and not allowing automation~~ FIXED  
-- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~^^ it was slow and annoying ...~~ FIXED  
 - ~~The database and application are on the same instance, neither can scale without the other~~ FIXED  
 - ~~The database of the application is on an instance, scaling IN/OUT risks this media~~ FIXED  
 
 - The application media and UI store is local to an instance, scaling IN/OUT risks this media
 - Customer Connections are to an instance directly ... no health checks/auto healing
-- The IP of the instance is hardcoded into the database ....
 
 
 We can now move onto STAGE 4
@@ -509,13 +507,12 @@ Then we create a new version, version 3
 This configuration has several limitations :-
 
 - ~~The application and database are built manually, taking time and not allowing automation~~ FIXED  
-- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~^^ it was slow and annoying ... ~~ FIXED  
 - ~~The database and application are on the same instance, neither can scale without the other~~ FIXED  
 - ~~The database of the application is on an instance, scaling IN/OUT risks this media~~ FIXED  
 - ~~The application media and UI store is local to an instance, scaling IN/OUT risks this media~~ FIXED  
 
 - Customer Connections are to an instance directly ... no health checks/auto healing
-- The IP of the instance is hardcoded into the database ....
 
 
 We can now move onto stage 5
@@ -715,13 +712,11 @@ This is an example of self-healing
 This configuration has several limitations :-
 
 - ~~The application and database are built manually, taking time and not allowing automation~~ FIXED  
-- ~~^^ it was slow and annoying ... that was the intention.~~ FIXED  
+- ~~^^ it was slow and annoying ...~~ FIXED  
 - ~~The database and application are on the same instance, neither can scale without the other~~ FIXED  
 - ~~The database of the application is on an instance, scaling IN/OUT risks this media~~ FIXED  
 - ~~The application media and UI store is local to an instance, scaling IN/OUT risks this media~~ FIXED  
 - ~~Customer Connections are to an instance directly ... no health checks/auto healing~~ FIXED
-- ~~The IP of the instance is hardcoded into the database ....~~ FIXED
-
 
 We can now move onto STAGE6 which is the cleanup step.  
 
