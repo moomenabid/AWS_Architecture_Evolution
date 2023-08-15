@@ -401,6 +401,10 @@ This configuration has several limitations :-
 We can now move onto STAGE 4
 
 # Stage 4 - Split out the WP filesystem into EFS and Update the LT
+<!--- ![STAGE4 - SPLIT OUT EFS](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/8640b2fd-93cc-4556-81f9-332dff5ab915) --->
+## Architecture of STAGE 4
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/8640b2fd-93cc-4556-81f9-332dff5ab915" width=75% height=75%>
+
 In stage 4 of this project we will be creating an EFS file system designed to store the wordpress locally stored media. This area stores any media for posts uploaded when creating the post as well as theme data. By storing this on a shared file system it means that the data can be used across all instances in a consistent way, and it lives on past the lifetime of the instance.  
 ## STAGE 4A - Create EFS File System
 ### File System Settings
