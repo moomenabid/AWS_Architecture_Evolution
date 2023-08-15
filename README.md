@@ -1,4 +1,8 @@
 # AWS Architecture Evolution
+<!--- ![STAGE1 - SINGLE SERVER MANUAL](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/bd4a5410-9b55-4917-b5ed-e2ed6b9b0d36) --->
+## Architecture of STAGE 1
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/bd4a5410-9b55-4917-b5ed-e2ed6b9b0d36" width=75% height=75%>
+
 In this project we are going to evolve the architecture of a popular web application wordpress. The architecture will start with a manually built single instance, running the application and database, over the stages of the project we will evolve this until its a scalable and resilient architecture.  
 
 The project consists of 6 stages, each implementing additional components of the architecture. 
