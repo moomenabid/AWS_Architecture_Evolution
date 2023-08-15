@@ -535,6 +535,10 @@ This configuration has several limitations :-
 We can now move onto stage 5
 
 # Stage 5 - Enable elasticity via a ASG & ALB
+<!--- ![STAGE5 - ASG   ALB](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/3121e052-60d3-4205-a9d8-b53a14f24df7) --->
+## Architecture of STAGE 5
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/3121e052-60d3-4205-a9d8-b53a14f24df7" width=75% height=75%>
+
 In stage 5 of this advanced demo lesson, we will be adding an auto scaling group to provision and terminate instances automatically based on load on the system.  
 
 We have already performed all of the preparation steps required, by moving data storage onto RDS, media storage onto EFS and creating a launch template to automatically build the wordpress application servers.
