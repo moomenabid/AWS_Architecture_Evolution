@@ -535,7 +535,9 @@ This configuration has several limitations :-
 We can now move onto stage 5
 
 # Stage 5 - Enable elasticity via a ASG & ALB
+
 <!--- ![STAGE5 - ASG   ALB](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/3121e052-60d3-4205-a9d8-b53a14f24df7) --->
+
 ## Architecture of STAGE 5
 <img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/3121e052-60d3-4205-a9d8-b53a14f24df7" width=75% height=75%>
 
