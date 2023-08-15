@@ -136,7 +136,7 @@ We should see the wordpress welcome page
 We can now move to stage 2
 
 # Stage 2 - Automate the build using a Launch Template 
-<!--- ![STAGE2 - SINGLE SERVER LT](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/ad58aeb8-5362-4f1f-8916-b0c68a9d0689) --->
+
 ## Architecture of STAGE 2
 <img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/ad58aeb8-5362-4f1f-8916-b0c68a9d0689" width=75% height=75%>
 
