@@ -260,6 +260,10 @@ This configuration has several limitations :-
 
 we can now move onto STAGE3
 # Stage 3 - Split out the DB into RDS and Update the LT 
+<!--- ![STAGE3 - SPLIT OUT RDS](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/ba4a9f89-1c87-4e21-910c-0976376ab111) --->
+## Architecture of STAGE 3
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/ba4a9f89-1c87-4e21-910c-0976376ab111" width=75% height=75%>
+
 In stage 3 we will be splitting out the database functionality from the EC2 instance .. running MariaDB to an RDS instance running the MySQL Engine.  
 This will allow the DB and Instance to scale independently, and will allow the data to be secure past the lifetime of the EC2 instance.  
 ## STAGE 3A - Create RDS Subnet Group
