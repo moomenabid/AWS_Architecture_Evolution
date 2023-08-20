@@ -262,9 +262,10 @@ This configuration has several limitations :-
 
 we can now move onto STAGE3
 # Stage 3 - Split out the DB into RDS and Update the LT 
-<!--- ![STAGE3 - SPLIT OUT RDS](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/ba4a9f89-1c87-4e21-910c-0976376ab111) --->
 ## Architecture of STAGE 3
-<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/ba4a9f89-1c87-4e21-910c-0976376ab111" width=75% height=75%>
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/9e41a6fb-3bf3-42dd-b76d-b5751ab14583" width=75% height=75%>
+<!--- ![STAGE3 - SPLIT OUT RDS](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/9e41a6fb-3bf3-42dd-b76d-b5751ab14583) --->
+
 
 In stage 3 we will be splitting out the database functionality from the EC2 instance .. running MariaDB to an RDS instance running the MySQL Engine.  
 This will allow the DB and Instance to scale independently, and will allow the data to be secure past the lifetime of the EC2 instance.  
@@ -403,9 +404,9 @@ This configuration has several limitations :-
 We can now move onto STAGE 4
 
 # Stage 4 - Split out the WP filesystem into EFS and Update the LT
-<!--- ![STAGE4 - SPLIT OUT EFS](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/8640b2fd-93cc-4556-81f9-332dff5ab915) --->
 ## Architecture of STAGE 4
-<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/8640b2fd-93cc-4556-81f9-332dff5ab915" width=75% height=75%>
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/6ec04a95-7fe0-4c10-87af-447830a897f8" width=75% height=75%>
+<!--- ![STAGE4 - SPLIT OUT EFS](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/6ec04a95-7fe0-4c10-87af-447830a897f8) --->
 
 In stage 4 of this project we will be creating an EFS file system designed to store the wordpress locally stored media. This area stores any media for posts uploaded when creating the post as well as theme data. By storing this on a shared file system it means that the data can be used across all instances in a consistent way, and it lives on past the lifetime of the instance.  
 ## STAGE 4A - Create EFS File System
@@ -537,11 +538,9 @@ This configuration has several limitations :-
 We can now move onto stage 5
 
 # Stage 5 - Enable elasticity via a ASG & ALB
-
-<!--- ![STAGE5 - ASG   ALB](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/3121e052-60d3-4205-a9d8-b53a14f24df7) --->
-
 ## Architecture of STAGE 5
-<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/3121e052-60d3-4205-a9d8-b53a14f24df7" width=75% height=75%>
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/07eec566-1648-4469-9c2d-0c2fe0e3c63f" width=75% height=75%>
+<!--- ![STAGE5 - ASG   ALB](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/07eec566-1648-4469-9c2d-0c2fe0e3c63f) --->
 
 In stage 5 of this advanced demo lesson, we will be adding an auto scaling group to provision and terminate instances automatically based on load on the system.  
 
