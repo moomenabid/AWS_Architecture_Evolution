@@ -15,9 +15,9 @@ Here is an overview of what we will do:
 
 # STAGE 1 - Setup the environment and manually build wordpress
 
-<!--- ![STAGE1 - SINGLE SERVER MANUAL](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/38518bce-3b1d-4955-a307-bc7ee190a43f) --->
+<!--- ![STAGE1 - SINGLE SERVER MANUAL](https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/4b8d3003-467f-490c-93dc-6d85e609950c) --->
 ## Architecture of STAGE 1
-<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/bd4a5410-9b55-4917-b5ed-e2ed6b9b0d36" width=75% height=75%>
+<img src="https://github.com/moomenabid/AWS_Architecture_Evolution/assets/47564307/4b8d3003-467f-490c-93dc-6d85e609950c" width=75% height=75%>
 
 In stage 1 of this advanced project we will:
 - Setup the environment which WordPress will run from. 
